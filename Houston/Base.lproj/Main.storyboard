@@ -41,6 +41,13 @@
                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                 <textInputTraits key="textInputTraits"/>
                             </textField>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Label" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="3bn-0u-u1j">
+                                <rect key="frame" x="16" y="323" width="343" height="21"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
@@ -51,6 +58,7 @@
                     <connections>
                         <outlet property="commandLine" destination="uZs-sM-ydp" id="t88-ZW-5eX"/>
                         <outlet property="history" destination="Kzz-AI-1kX" id="fHk-Gk-U16"/>
+                        <outlet property="status" destination="3bn-0u-u1j" id="93e-hj-pMl"/>
                         <outlet property="theOnlyLabel" destination="Ver-4Q-xBW" id="Xva-OW-gL3"/>
                     </connections>
                 </viewController>

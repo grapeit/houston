@@ -12,9 +12,15 @@ import CoreBluetooth
 
 class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDelegate, CBPeripheralDelegate {
 
+  let deviceName = "Houston"
+  let serviceId = CBUUID(string: "FFE0")
+  let characteristicId = CBUUID(string: "FFE1")
+
   @IBOutlet weak var theOnlyLabel: UILabel!
   @IBOutlet weak var history: UITextView!
   @IBOutlet weak var commandLine: UITextField!
+  @IBOutlet weak var status: UILabel!
+
   var timer = Timer()
   var motionManager: CMMotionManager!
   var cnt1 = 0
@@ -62,72 +68,100 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     return false;
   }
 
+  func onConnectionFailed(_ error: String) {
+    self.status.text = "Connection failed: " + error
+    self.characteristic = nil
+    self.peripheral = nil
+    Timer.scheduledTimer(withTimeInterval: 2, repeats: false) {_ in
+      if (self.manager.state == CBManagerState.poweredOn) {
+        self.status.text = "Searching for device"
+        self.manager.scanForPeripherals(withServices: [self.serviceId], options: nil)
+      }
+    }
+  }
+
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     print("centralManagerDidUpdateState")
     if central.state == CBManagerState.poweredOn {
-      central.scanForPeripherals(withServices: nil, options: nil)
+      central.scanForPeripherals(withServices: [serviceId], options: nil)
+      self.status.text = "Searching for device"
     } else {
-      print("Bluetooth not available.")
+      self.characteristic = nil
+      self.peripheral = nil
+      self.status.text = "Bluetooth is not available"
     }
   }
 
   func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
     let device = (advertisementData as NSDictionary).object(forKey: CBAdvertisementDataLocalNameKey) as? NSString
-    if device?.isEqual(to: "Houston") == true {
+    if device?.isEqual(to: deviceName) == true {
       print("centralManager: \(RSSI) \(device) advertisementData: \(advertisementData)")
       self.manager.stopScan()
       self.peripheral = peripheral
       self.peripheral.delegate = self
       print("connecting to \(device)")
+      self.status.text = "Connecting (state 1 of 3)"
       manager.connect(peripheral, options: nil)
     }
   }
 
   func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
     print("connected to \(peripheral)")
-    peripheral.discoverServices(nil)
+    self.status.text = "Connecting (stage 2 of 3)"
+    peripheral.discoverServices([serviceId])
+  }
+
+  func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+    onConnectionFailed("Failed to connect")
+  }
+
+  func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+    onConnectionFailed("Device disconnected")
   }
 
   func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
     print("peripheral connected: \(peripheral), error: \(error)")
+    var good = false
     for service in peripheral.services! {
-      let thisService = service as CBService
-      print("service: \(thisService)")
-      if thisService.uuid == CBUUID(string: "FFE0") {
+      print("service: \(service)")
+      if service.uuid == serviceId {
         print("discovering characteristics")
-        peripheral.discoverCharacteristics(nil, for: thisService)
+        peripheral.discoverCharacteristics(nil, for: service)
+        good = true
       }
+    }
+    if (good) {
+      self.status.text = "Connecting (stage 3 of 3)"
+    } else {
+      onConnectionFailed("Requred service is not found")
     }
   }
 
   func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
     print("peripheral characteristics")
+    var good = false
     for characteristic in service.characteristics! {
-      let thisCharacteristic = characteristic as CBCharacteristic
-      print("characteristic: \(thisCharacteristic)")
-      if thisCharacteristic.uuid == CBUUID(string: "FFE1") {
-        self.characteristic = thisCharacteristic
-        self.peripheral.setNotifyValue(true, for: thisCharacteristic)
+      print("characteristic: \(characteristic)")
+      if characteristic.uuid == characteristicId {
+        self.characteristic = characteristic
+        self.peripheral.setNotifyValue(true, for: characteristic)
+        good = true
       }
+    }
+    if (good) {
+      self.status.text = "Connected";
+    } else {
+      onConnectionFailed("Required characteristic is not found")
     }
   }
 
   func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
     print("characteristic update: \(characteristic) error: \(error)")
-    if characteristic.uuid == CBUUID(string: "FFE1") {
+    if characteristic.uuid == characteristicId {
       let data = String(data: characteristic.value!, encoding: String.Encoding.utf8)
       print("data: \(data)")
       history.text.append("<< " + data!)
       history.scrollRangeToVisible(NSMakeRange(history.text.characters.count - 1, 1))
     }
   }
-
-  func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
-    print("!!!didDiscoverDescriptorsFor")
-  }
-
-  func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {
-    print("!!!didUpdateValueFor")
-  }
-
 }
