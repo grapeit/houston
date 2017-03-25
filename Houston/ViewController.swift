@@ -16,7 +16,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   let serviceId = CBUUID(string: "FFE0")
   let characteristicId = CBUUID(string: "FFE1")
 
-  @IBOutlet weak var theOnlyLabel: UILabel!
+  @IBOutlet weak var titleLabel: UILabel!
   @IBOutlet weak var history: UITextView!
   @IBOutlet weak var commandLine: UITextField!
   @IBOutlet weak var status: UILabel!
@@ -25,10 +25,10 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   var motionManager: CMMotionManager!
   var cnt1 = 0
   var cnt2 = 1
-  var manager:CBCentralManager!
-  var peripheral:CBPeripheral!
-  var characteristic:CBCharacteristic!
-  var lastDataTimestamp:TimeInterval = 0.0
+  var manager: CBCentralManager!
+  var peripheral: CBPeripheral!
+  var characteristic: CBCharacteristic!
+  var lastDataTimestamp: TimeInterval = 0
 
 
   override func viewDidLoad() {
@@ -54,7 +54,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     cnt1 = cnt2;
     cnt2 = cnt;
     if let a = motionManager.accelerometerData {
-      theOnlyLabel.text = String(format: "%ld: x: %.2lf, y: %.2lf, z: %.2f", cnt, a.acceleration.x, a.acceleration.y, a.acceleration.z)
+      titleLabel.text = String(format: "%ld: x: %.2lf, y: %.2lf, z: %.2f", cnt, a.acceleration.x, a.acceleration.y, a.acceleration.z)
     }
   }
 
@@ -65,7 +65,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
       if r.isEmpty || r.characters.first == "\0" {
         continue;
       }
-      if !first || (first && NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 6) {
+      if !first || NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 1 {
         history.text.append("<< ")
       }
       history.text.append(r)
