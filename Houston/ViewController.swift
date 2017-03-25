@@ -28,6 +28,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   var manager:CBCentralManager!
   var peripheral:CBPeripheral!
   var characteristic:CBCharacteristic!
+  var lastDataTimestamp:TimeInterval = 0.0
 
 
   override func viewDidLoad() {
@@ -39,6 +40,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     motionManager.startAccelerometerUpdates()
     //timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {_ in self.onTimer() }
     manager = CBCentralManager(delegate: self, queue: nil)
+    self.history.layoutManager.allowsNonContiguousLayout = false
   }
 
   override func didReceiveMemoryWarning() {
@@ -56,13 +58,44 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     }
   }
 
+  func dataIn(_ data: String) {
+    let rows = data.components(separatedBy: "\n")
+    var first = true
+    for r in rows {
+      if r.isEmpty {
+        continue;
+      }
+      if !first || (first && NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 6) {
+        history.text.append("<< ")
+      }
+      history.text.append(r)
+      first = false
+    }
+    let last = data.characters.last
+    if last == "\n" || last == "\r\n" {
+      lastDataTimestamp = 0
+    } else {
+      lastDataTimestamp = NSDate.timeIntervalSinceReferenceDate
+    }
+    scrollHistory()
+  }
+
+  func dataOut(_ data: String) {
+    history.text.append(">> " + data + "\n")
+    lastDataTimestamp = 0
+    scrollHistory()
+  }
+
+  func scrollHistory() {
+    history.scrollRangeToVisible(NSMakeRange(history.text.characters.count - 1, 0))
+  }
+
   func textFieldShouldReturn(_ textField: UITextField) -> Bool {
     let str = textField.text
     let data = Data(bytes: Array(str!.utf8))
     if self.characteristic != nil {
-      self.history.text.append(">> " + textField.text! + "\n")
-      history.scrollRangeToVisible(NSMakeRange(history.text.characters.count - 1, 1))
       self.peripheral.writeValue(data, for: self.characteristic, type: CBCharacteristicWriteType.withoutResponse)
+      dataOut(textField.text!)
     }
     textField.text = "";
     return false;
@@ -160,8 +193,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     if characteristic.uuid == characteristicId {
       let data = String(data: characteristic.value!, encoding: String.Encoding.utf8)
       print("data: \(data)")
-      history.text.append("<< " + data!)
-      history.scrollRangeToVisible(NSMakeRange(history.text.characters.count - 1, 1))
+      dataIn(data!)
     }
   }
 }
