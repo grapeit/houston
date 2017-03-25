@@ -62,7 +62,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     let rows = data.components(separatedBy: "\n")
     var first = true
     for r in rows {
-      if r.isEmpty {
+      if r.isEmpty || r.characters.first == "\0" {
         continue;
       }
       if !first || (first && NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 6) {
