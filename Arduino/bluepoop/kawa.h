@@ -2,8 +2,8 @@
 
 class Kawa {
 private:
-  const uint32_t requestByteDelay = 10;
-  const uint32_t requestDelay = 30; // Time between requests.
+  const uint32_t responseByteDelay = 8; // Ninja 300 works with 7, does not work with 6
+  const uint32_t delayBetweenRequests = 30; // Time between requests.
   const uint32_t maxSendTime = 5000; // 5 second timeout on KDS comms.
   const uint8_t ecuAddr = 0x11;
   const uint8_t myAddr = 0xF2;
@@ -11,6 +11,7 @@ private:
   const byte      m_rx = 0;
   const byte      m_tx = 1;
 
+  unsigned long   m_lastRequest = 0;
   int             m_lastError = 0;
 
 public:
@@ -39,7 +40,6 @@ public:
     req[0] = 0x81;
     rLen = sendRequest(req, 1, resp, 3);
   
-    delay(requestDelay);
     // Response should be 3 bytes: 0xC1 0xEA 0x8F
     if ((rLen == 3) && (resp[0] == 0xC1) && (resp[1] == 0xEA) && (resp[2] == 0x8F)) {
       // Success, so send the Start Diag frame
@@ -118,26 +118,25 @@ public:
       buf[4 + z] = calcChecksum(buf, 4 + z);
       bytesToSend = 5 + z;
     }
-    
+
+    unsigned long now = millis();
+    if (now - m_lastRequest < delayBetweenRequests) {
+      delay(delayBetweenRequests - (now - m_lastRequest));
+    }
+
     // Now send the command...
     for (uint8_t i = 0; i < bytesToSend; i++) {
       bytesSent += Serial.write(buf[i]);
-      delay(requestByteDelay);
     }
-    
-    // Wait required time for response.
-    delay(requestDelay);
-  
+
     startTime = millis();
-  
+ 
     // Wait for and deal with the reply
     while ((bytesRcvd <= maxResponseLength) && ((millis() - startTime) < maxSendTime)) {
+      delay(responseByteDelay);
       if (Serial.available()) {
         c = Serial.read();
         startTime = millis(); // reset the timer on each byte received
-  
-        delay(requestByteDelay);
-  
         rbuf[rCnt] = c;
         switch (rCnt) {
         case 0:
@@ -193,9 +192,6 @@ public:
             // Reset the counters
             rCnt = 0;
             bytesRcvd = 0;
-            
-            // ISO 14230 specifies a delay between ECU responses.
-            delay(requestDelay);
           } else {
             // must be data, so put it in the response buffer
             // rCnt must be >= 4 to be here.

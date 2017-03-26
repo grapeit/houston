@@ -54,16 +54,16 @@ void loop() {
     if (kawa.getLastError() == 0) {
       led.set(RgbLed::blue);
       uint8_t response[16];
-      unsigned long start = micros();
+      unsigned long start = millis();
       uint8_t r = kawa.requestRegister(registerWanted, response, sizeof response);
-      unsigned long finish = micros();
+      unsigned long finish = millis();
       int s = sprintf(sz, "Response for %d (%d): ", registerWanted, r);
       for (int i = 0; i < r; ++i) {
         s += sprintf(sz + s, "%02X", response[i]);
       }
       strcat(sz, "\n");
       printMessage(sz);
-      sprintf(sz, "Done in %lu us\n", finish - start);
+      sprintf(sz, "Done in %lu ms\n", finish - start);
       printMessage(sz);
       led.set(kawa.getLastError() == 0 ? RgbLed::green : RgbLed::red);
     }
