@@ -59,6 +59,9 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func dataIn(_ data: String) {
+    if data.characters.first == "\n" {
+      lastDataTimestamp = 0
+    }
     let rows = data.components(separatedBy: "\n")
     var first = true
     for r in rows {

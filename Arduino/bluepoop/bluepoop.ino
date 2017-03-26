@@ -1,4 +1,5 @@
 #include <SoftwareSerial.h>
+#include <EEPROM.h>
 #include "kawa.h"
 #include "led.h"
  
@@ -30,8 +31,10 @@ void connectToBike() {
 }
 
 void setup() {
+  registerWanted = EEPROM.read(0);
   bt.begin(9600);
-  printMessage("Hello");
+  sprintf(sz, "Hello! Target register: %d (0x%X).", registerWanted, registerWanted);
+  printMessage(sz);
   connectToBike();
 }
 
@@ -39,6 +42,7 @@ void loop() {
   if (bt.available()) {
     String s = bt.readString();
     registerWanted = s.toInt();
+    EEPROM.write(0, registerWanted);
     sprintf(sz, "Register 0x%02X (%d)", registerWanted, registerWanted);
     printMessage(sz);
     lastRequest = 0;
@@ -50,16 +54,16 @@ void loop() {
     if (kawa.getLastError() == 0) {
       led.set(RgbLed::blue);
       uint8_t response[16];
-      unsigned long start = millis();
+      unsigned long start = micros();
       uint8_t r = kawa.requestRegister(registerWanted, response, sizeof response);
-      unsigned long finish = millis();
+      unsigned long finish = micros();
       int s = sprintf(sz, "Response for %d (%d): ", registerWanted, r);
       for (int i = 0; i < r; ++i) {
         s += sprintf(sz + s, "%02X", response[i]);
       }
       strcat(sz, "\n");
       printMessage(sz);
-      sprintf(sz, "Done in %d ms\n");
+      sprintf(sz, "Done in %lu us\n", finish - start);
       printMessage(sz);
       led.set(kawa.getLastError() == 0 ? RgbLed::green : RgbLed::red);
     }
