@@ -55,10 +55,9 @@ public:
       } else {
         m_lastError = 2;
       }
-    } else {
-      m_lastError = 1;
     }
     // Otherwise, we failed to init.
+    m_lastError = 1;
     return false;
   }
 
@@ -85,14 +84,11 @@ public:
   uint8_t sendRequest(const uint8_t *request, uint8_t reqLen, uint8_t *response, uint8_t maxResponseLength) {
     uint8_t buf[16], rbuf[16];
     uint8_t bytesToSend;
-    uint8_t bytesSent = 0;
     uint8_t bytesToRcv = 0;
     uint8_t bytesRcvd = 0;
     uint8_t rCnt = 0;
-    uint8_t c, z;
+    uint8_t c;
     bool forMe = false;
-    char radioBuf[32];
-    uint32_t startTime;
 
     memset(buf, 0, sizeof buf);
     memset(response, 0, maxResponseLength);
@@ -105,29 +101,23 @@ public:
     }
     buf[1] = ecuAddr;
     buf[2] = myAddr;
-  
     if (reqLen == 1) {
       buf[3] = request[0];
       buf[4] = calcChecksum(buf, 4);
       bytesToSend = 5;
     } else {
       buf[3] = reqLen;
-      for (z = 0; z < reqLen; z++) {
-        buf[4 + z] = request[z];
-      }
-      buf[4 + z] = calcChecksum(buf, 4 + z);
-      bytesToSend = 5 + z;
+      memcpy(buf + 4, request, reqLen);
+      buf[4 + reqLen] = calcChecksum(buf, 4 + reqLen);
+      bytesToSend = 5 + reqLen;
     }
 
-    unsigned long now = millis();
-    if (now - m_lastRequest < delayBetweenRequests) {
-      delay(delayBetweenRequests - (now - m_lastRequest));
+    unsigned long startTime = millis();
+    if (startTime - m_lastRequest < delayBetweenRequests) { // I doubt this condition will ever be triggered
+      delay(delayBetweenRequests - (startTime - m_lastRequest));
     }
 
-    // Now send the command...
-    for (uint8_t i = 0; i < bytesToSend; i++) {
-      bytesSent += Serial.write(buf[i]);
-    }
+    Serial.write(buf, bytesToSend);
 
     startTime = millis();
  
