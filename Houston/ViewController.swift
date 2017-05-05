@@ -131,11 +131,9 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
     let device = (advertisementData as NSDictionary).object(forKey: CBAdvertisementDataLocalNameKey) as? NSString
     if device?.isEqual(to: deviceName) == true {
-      print("centralManager: \(RSSI) \(device) advertisementData: \(advertisementData)")
       self.manager.stopScan()
       self.peripheral = peripheral
       self.peripheral.delegate = self
-      print("connecting to \(device)")
       self.status.text = "Connecting (state 1 of 3)"
       manager.connect(peripheral, options: nil)
     }
@@ -156,7 +154,6 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-    print("peripheral connected: \(peripheral), error: \(error)")
     var good = false
     for service in peripheral.services! {
       print("service: \(service)")
@@ -192,10 +189,8 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-    print("characteristic update: \(characteristic) error: \(error)")
     if characteristic.uuid == characteristicId {
       let data = String(data: characteristic.value!, encoding: String.Encoding.utf8)
-      print("data: \(data)")
       dataIn(data!)
     }
   }
