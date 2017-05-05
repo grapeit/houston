@@ -38,7 +38,7 @@ void loop() {
   }
 }
 
-void printMessage(char* message) {
+void printMessage(const char* message) {
   bt.println(message);
 }
 

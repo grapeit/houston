@@ -136,14 +136,14 @@ public:
           } else if (c == 0x80) {
             bytesToRcv = 0;
           }
-          rCnt++;
+          ++rCnt;
           break;
         case 1:
           // should be the target address
           if (c == myAddr) {
             forMe = true;
           }
-          rCnt++;
+          ++rCnt;
           break;
         case 2:
           // should be the sender address
@@ -152,19 +152,19 @@ public:
           } else if (c == myAddr) {
             forMe = false; // ignore the packet if it came from us!
           }
-          rCnt++;
+          ++rCnt;
           break;
         case 3:
           // should be the number of bytes, or the response if its a single byte packet.
           if (bytesToRcv == 1) {
-            bytesRcvd++;
+            ++bytesRcvd;
             if (forMe) {
               response[0] = c; // single byte response so store it.
             }
           } else {
             bytesToRcv = c; // number of bytes of data in the packet.
           }
-          rCnt++;
+          ++rCnt;
           break;
         default:
           if (bytesToRcv == bytesRcvd) {
@@ -173,10 +173,11 @@ public:
               // Only check the checksum if it was for us - don't care otherwise!
               if (calcChecksum(rbuf, rCnt) == rbuf[rCnt]) {
                 // Checksum OK.
-                return(bytesRcvd);
+                return bytesRcvd;
               } else {
                 // Checksum Error.
-                return(0);
+                m_lastError = -2;
+                return 0;
               }
             }
             // Reset the counters
@@ -188,8 +189,8 @@ public:
             if (forMe) {
               response[bytesRcvd] = c;
             }
-            bytesRcvd++;
-            rCnt++;
+            ++bytesRcvd;
+            ++rCnt;
           }
           break;
         }
@@ -203,7 +204,7 @@ public:
   // (same as being truncated to one byte)
   uint8_t calcChecksum(uint8_t *data, uint8_t len) {
     uint8_t crc = 0;
-    for (uint8_t i = 0; i < len; i++) {
+    for (uint8_t i = 0; i < len; ++i) {
       crc = crc + data[i];
     }
     return crc;
