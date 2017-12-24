@@ -59,13 +59,13 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func dataIn(_ data: String) {
-    if data.characters.first == "\n" {
+    if data.starts(with: "\n") {
       lastDataTimestamp = 0
     }
     let rows = data.components(separatedBy: "\n")
     var first = true
     for r in rows {
-      if r.isEmpty || r.characters.first == "\0" {
+      if r.isEmpty || r.starts(with: "\0") {
         continue;
       }
       if !first || NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 1 {
@@ -74,7 +74,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
       history.text.append(r)
       first = false
     }
-    let last = data.characters.last
+    let last = data.suffix(1)
     if last == "\n" || last == "\r\n" {
       lastDataTimestamp = 0
     } else {
@@ -90,7 +90,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func scrollHistory() {
-    history.scrollRangeToVisible(NSMakeRange(history.text.characters.count - 1, 0))
+    history.scrollRangeToVisible(NSMakeRange(history.text.count - 1, 0))
   }
 
   func textFieldShouldReturn(_ textField: UITextField) -> Bool {
