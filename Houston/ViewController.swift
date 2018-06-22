@@ -15,46 +15,57 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   let deviceName = "Houston"
   let serviceId = CBUUID(string: "FFE0")
   let characteristicId = CBUUID(string: "FFE1")
+  let maxLines = 100
 
-  @IBOutlet weak var titleLabel: UILabel!
   @IBOutlet weak var history: UITextView!
   @IBOutlet weak var commandLine: UITextField!
   @IBOutlet weak var status: UILabel!
-
-  var timer = Timer()
+  @IBOutlet weak var bottomConstraint: NSLayoutConstraint!
+    
   var motionManager: CMMotionManager!
-  var cnt1 = 0
-  var cnt2 = 1
   var manager: CBCentralManager!
   var peripheral: CBPeripheral!
   var characteristic: CBCharacteristic!
   var lastDataTimestamp: TimeInterval = 0
-
+  var lines = 0
+  var initialBottomConstraint: CGFloat?
 
   override func viewDidLoad() {
     super.viewDidLoad()
     // Do any additional setup after loading the view, typically from a nib.
-    debugPrint("viewDidLoad")
-    commandLine.delegate = self;
+    commandLine.delegate = self
     motionManager = CMMotionManager()
     motionManager.startAccelerometerUpdates()
-    //timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {_ in self.onTimer() }
     manager = CBCentralManager(delegate: self, queue: nil)
     self.history.layoutManager.allowsNonContiguousLayout = false
+    
+    NotificationCenter.default.addObserver(self, selector: #selector(ViewController.keyboardWillShow(_:)), name:NSNotification.Name.UIKeyboardWillShow, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(ViewController.keyboardWillHide(_:)), name:NSNotification.Name.UIKeyboardWillHide, object: nil)
   }
 
   override func didReceiveMemoryWarning() {
     super.didReceiveMemoryWarning()
     // Dispose of any resources that can be recreated.
-    debugPrint("didReceiveMemoryWarning")
+    print("didReceiveMemoryWarning")
   }
-
-  func onTimer() {
-    let cnt = cnt1 + cnt2;
-    cnt1 = cnt2;
-    cnt2 = cnt;
-    if let a = motionManager.accelerometerData {
-      titleLabel.text = String(format: "%ld: x: %.2lf, y: %.2lf, z: %.2f", cnt, a.acceleration.x, a.acceleration.y, a.acceleration.z)
+  
+  @objc func keyboardWillShow(_ sender: NSNotification) {
+    adjustForKeyboard(userInfo: sender.userInfo!, show: true)
+  }
+  
+  @objc func keyboardWillHide(_ sender: NSNotification) {
+    adjustForKeyboard(userInfo: sender.userInfo!, show: false)
+  }
+  
+  private func adjustForKeyboard(userInfo: [AnyHashable : Any], show: Bool) {
+    let height = (userInfo[UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue.height
+    let duration = (userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber).doubleValue
+    if initialBottomConstraint == nil {
+      initialBottomConstraint = bottomConstraint.constant
+    }
+    UIView.animate(withDuration: duration) {
+      self.bottomConstraint.constant = show ? height : self.initialBottomConstraint!
+      self.view?.layoutIfNeeded()
     }
   }
 
@@ -66,7 +77,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     var first = true
     for r in rows {
       if r.isEmpty || r.starts(with: "\0") {
-        continue;
+        continue
       }
       if !first || NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 1 {
         history.text.append("<< ")
@@ -80,28 +91,39 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     } else {
       lastDataTimestamp = NSDate.timeIntervalSinceReferenceDate
     }
-    scrollHistory()
+    onNewLine()
   }
 
-  func dataOut(_ data: String) {
-    history.text.append(">> " + data + "\n")
+  func dataOut(_ data: String, succeed: Bool) {
+    history.text.append((succeed ? ">> " : "x> ") + data + "\n")
     lastDataTimestamp = 0
-    scrollHistory()
+    onNewLine()
   }
 
-  func scrollHistory() {
-    history.scrollRangeToVisible(NSMakeRange(history.text.count - 1, 0))
+  func onNewLine() {
+    lines += 1
+    while lines > maxLines {
+      if let n = history.text.range(of: "\n") {
+        history.text.removeSubrange(history.text.startIndex..<n.upperBound)
+        lines -= 1
+      } else {
+        break
+      }
+    }
+    history.scrollRangeToVisible(NSMakeRange(history.text.count - 3, 0))
   }
 
   func textFieldShouldReturn(_ textField: UITextField) -> Bool {
     let str = textField.text
     let data = Data(bytes: Array(str!.utf8))
+    var succeed = false
     if self.characteristic != nil {
       self.peripheral.writeValue(data, for: self.characteristic, type: CBCharacteristicWriteType.withoutResponse)
-      dataOut(textField.text!)
+      succeed = true
     }
-    textField.text = "";
-    return false;
+    dataOut(textField.text!, succeed: succeed)
+    textField.text = ""
+    return false
   }
 
   func onConnectionFailed(_ error: String) {
@@ -182,7 +204,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
       }
     }
     if (good) {
-      self.status.text = "Connected";
+      self.status.text = "Connected"
     } else {
       onConnectionFailed("Required characteristic is not found")
     }
