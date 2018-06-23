@@ -10,7 +10,7 @@ import UIKit
 import CoreMotion
 import CoreBluetooth
 
-class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDelegate, CBPeripheralDelegate {
+class ViewController: UIViewController {
 
   let deviceName = "Houston"
   let serviceId = CBUUID(string: "FFE0")
@@ -21,7 +21,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   @IBOutlet weak var commandLine: UITextField!
   @IBOutlet weak var status: UILabel!
   @IBOutlet weak var bottomConstraint: NSLayoutConstraint!
-    
+
   var motionManager: CMMotionManager!
   var manager: CBCentralManager!
   var peripheral: CBPeripheral!
@@ -37,7 +37,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     motionManager = CMMotionManager()
     motionManager.startAccelerometerUpdates()
     manager = CBCentralManager(delegate: self, queue: nil)
-    self.history.layoutManager.allowsNonContiguousLayout = false
+    commandLine.keyboardType = .numbersAndPunctuation
     
     NotificationCenter.default.addObserver(self, selector: #selector(ViewController.keyboardWillShow(_:)), name:NSNotification.Name.UIKeyboardWillShow, object: nil)
     NotificationCenter.default.addObserver(self, selector: #selector(ViewController.keyboardWillHide(_:)), name:NSNotification.Name.UIKeyboardWillHide, object: nil)
@@ -48,15 +48,15 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     // Dispose of any resources that can be recreated.
     print("didReceiveMemoryWarning")
   }
-  
+
   @objc func keyboardWillShow(_ sender: NSNotification) {
     adjustForKeyboard(userInfo: sender.userInfo!, show: true)
   }
-  
+
   @objc func keyboardWillHide(_ sender: NSNotification) {
     adjustForKeyboard(userInfo: sender.userInfo!, show: false)
   }
-  
+
   private func adjustForKeyboard(userInfo: [AnyHashable : Any], show: Bool) {
     let height = (userInfo[UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue.height
     let duration = (userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber).doubleValue
@@ -69,39 +69,49 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
     }
   }
 
-  func dataIn(_ data: String) {
-    if data.starts(with: "\n") {
+  func dataIn(_ data: Data) {
+    guard let string = String(data: data, encoding: .utf8)?.replacingOccurrences(of: "\r", with: "") else {
+      return
+    }
+    if string.starts(with: "\n") {
       lastDataTimestamp = 0
     }
-    let rows = data.components(separatedBy: "\n")
+    let rows = string.components(separatedBy: "\n")
     var first = true
+    var newLines = 0
     for r in rows {
       if r.isEmpty || r.starts(with: "\0") {
         continue
       }
       if !first || NSDate.timeIntervalSinceReferenceDate - lastDataTimestamp >= 1 {
+        if !history.text.isEmpty {
+          history.text.append("\n")
+        }
         history.text.append("<< ")
+        newLines += 1
       }
       history.text.append(r)
       first = false
     }
-    let last = data.suffix(1)
-    if last == "\n" || last == "\r\n" {
+    if string.suffix(1) == "\n" {
       lastDataTimestamp = 0
     } else {
       lastDataTimestamp = NSDate.timeIntervalSinceReferenceDate
     }
-    onNewLine()
+    linesAdded(newLines)
   }
 
   func dataOut(_ data: String, succeed: Bool) {
-    history.text.append((succeed ? ">> " : "x> ") + data + "\n")
+    if !history.text.isEmpty {
+      history.text.append("\n")
+    }
+    history.text.append((succeed ? ">> " : "x> ") + data)
     lastDataTimestamp = 0
-    onNewLine()
+    linesAdded(1)
   }
 
-  func onNewLine() {
-    lines += 1
+  func linesAdded(_ newLines: Int) {
+    lines += newLines
     while lines > maxLines {
       if let n = history.text.range(of: "\n") {
         history.text.removeSubrange(history.text.startIndex..<n.upperBound)
@@ -110,20 +120,7 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
         break
       }
     }
-    history.scrollRangeToVisible(NSMakeRange(history.text.count - 3, 0))
-  }
-
-  func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-    let str = textField.text
-    let data = Data(bytes: Array(str!.utf8))
-    var succeed = false
-    if self.characteristic != nil {
-      self.peripheral.writeValue(data, for: self.characteristic, type: CBCharacteristicWriteType.withoutResponse)
-      succeed = true
-    }
-    dataOut(textField.text!, succeed: succeed)
-    textField.text = ""
-    return false
+    history.scrollRangeToVisible(NSMakeRange(history.text.count - 1, 0))
   }
 
   func onConnectionFailed(_ error: String) {
@@ -137,7 +134,25 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
       }
     }
   }
+}
 
+extension ViewController: UITextFieldDelegate {
+  func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+    guard let str = textField.text, let data = str.data(using: .utf8) else {
+      return false
+    }
+    var succeed = false
+    if self.characteristic != nil {
+      self.peripheral.writeValue(data, for: self.characteristic, type: CBCharacteristicWriteType.withoutResponse)
+      succeed = true
+    }
+    dataOut(str, succeed: succeed)
+    textField.text?.removeAll()
+    return false
+  }
+}
+
+extension ViewController: CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     print("centralManagerDidUpdateState")
     if central.state == CBManagerState.poweredOn {
@@ -174,7 +189,9 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
     onConnectionFailed("Device disconnected")
   }
+}
 
+extension ViewController: CBPeripheralDelegate {
   func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
     var good = false
     for service in peripheral.services! {
@@ -211,9 +228,8 @@ class ViewController: UIViewController, UITextFieldDelegate, CBCentralManagerDel
   }
 
   func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-    if characteristic.uuid == characteristicId {
-      let data = String(data: characteristic.value!, encoding: String.Encoding.utf8)
-      dataIn(data!)
+    if characteristic.uuid == characteristicId, let data = characteristic.value {
+      dataIn(data)
     }
   }
 }

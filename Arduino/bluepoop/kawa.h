@@ -8,14 +8,14 @@ private:
   const uint8_t ecuAddr = 0x11;
   const uint8_t myAddr = 0xF2;
 
-  const byte      m_rx = 0;
-  const byte      m_tx = 1;
+  const byte      _rx = 0;
+  const byte      _tx = 1;
 
-  unsigned long   m_lastRequest = 0;
-  int             m_lastError = 0;
+  unsigned long   _lastRequest = 0;
+  int             _lastError = 0;
 
 public:
-  int getLastError() const { return m_lastError; }
+  int getLastError() const { return _lastError; }
  
   bool initPulse() {
     uint8_t rLen;
@@ -23,15 +23,15 @@ public:
     uint8_t resp[3];
 
     Serial.end();
-    pinMode(m_rx, INPUT);
-    pinMode(m_tx, OUTPUT);
+    pinMode(_rx, INPUT);
+    pinMode(_tx, OUTPUT);
     
     // This is the ISO 14230-2 "Fast Init" sequence.
-    digitalWrite(m_tx, HIGH);
+    digitalWrite(_tx, HIGH);
     delay(300);
-    digitalWrite(m_tx, LOW);
+    digitalWrite(_tx, LOW);
     delay(25);
-    digitalWrite(m_tx, HIGH);
+    digitalWrite(_tx, HIGH);
     delay(25);
   
     Serial.begin(10400);
@@ -50,14 +50,14 @@ public:
 
       // OK Response should be 2 bytes: 0x50 0x80
       if ((rLen == 2) && (resp[0] == 0x50) && (resp[1] == 0x80)) {
-        m_lastError = 0;
+        _lastError = 0;
         return true;
       } else {
-        m_lastError = 2;
+        _lastError = 2;
       }
     }
     // Otherwise, we failed to init.
-    m_lastError = 1;
+    _lastError = 1;
     return false;
   }
 
@@ -113,8 +113,8 @@ public:
     }
 
     unsigned long startTime = millis();
-    if (startTime - m_lastRequest < delayBetweenRequests) { // I doubt this condition will ever be triggered
-      delay(delayBetweenRequests - (startTime - m_lastRequest));
+    if (startTime - _lastRequest < delayBetweenRequests) { // I doubt this condition will ever be triggered
+      delay(delayBetweenRequests - (startTime - _lastRequest));
     }
 
     Serial.write(buf, bytesToSend);
@@ -176,7 +176,7 @@ public:
                 return bytesRcvd;
               } else {
                 // Checksum Error.
-                m_lastError = -2;
+                _lastError = -2;
                 return 0;
               }
             }
@@ -196,7 +196,7 @@ public:
         }
       }
     }
-    m_lastError = -1;
+    _lastError = -1;
     return 0;
   }
   

@@ -17,7 +17,7 @@ char sz[64];
 void setup() {
   registerWanted = EEPROM.read(0);
   bt.begin(9600);
-  sprintf(sz, "Hello! Target register: %d (0x%X) @ %lu.", registerWanted, registerWanted, feedRate);
+  sprintf(sz, "Hello! Target register: %d (0x%02X) @ %lu", registerWanted, registerWanted, feedRate);
   printMessage(sz);
   connectToBike();
 }
@@ -49,7 +49,7 @@ void readRequest() {
   if (oldReg != registerWanted) {
     EEPROM.write(0, registerWanted);
   }
-  sprintf(sz, "Register 0x%02X (%d%s) @ %lu",
+  sprintf(sz, "Target register: %d (0x%02X%s) @ %lu",
     registerWanted, registerWanted, oldReg != registerWanted ? ", new" : "", feedRate);
   printMessage(sz);
 }
@@ -62,7 +62,7 @@ void connectToBike() {
     printMessage("Handshake succeed");
   } else {
     led.set(RgbLed::red);
-    sprintf(sz, "Handshake failed: %d", kawa.getLastError());
+    sprintf(sz, "Handshake failed with error %d", kawa.getLastError());
     printMessage(sz);
   }
 }
