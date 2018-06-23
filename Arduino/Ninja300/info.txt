@@ -1,0 +1,13 @@
+Diagnostic port wiring:
+	ground - black white
+	power - brown white
+	data - white blue
+
+Known registers:
+04 (2 bytes): Throttle Position Sensor 0x00D2 - 0x037A
+05 (2 bytes): Air Pressure = ??
+06 (1 byte): Engine Coolant Temperature = (a - 48) / 1.6
+07 (1 bytes): Intake Air Temperature
+09 (2 bytes): Engine RPM = (a * 100) + b ...
+11 (1 byte): Gear Position = x
+12 (2 bytes): Speed
